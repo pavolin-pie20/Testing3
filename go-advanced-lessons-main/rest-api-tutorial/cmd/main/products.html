@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Products</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<h1>Список продуктов</h1>
+
+
+<form id="addProductForm">
+    <label for="productName">Product Name:</label>
+    <input type="text" id="productName" name="productName" required>
+
+    <label for="typeSelect">Product Type:</label>
+    <select class="form-control" id="typeSelect" name="TypeID">
+        {{ range .ProductTypes}}
+        <option value="{{.IDType}}">{{ .NameType }}</option>
+        {{ end }}
+    </select>
+
+    <label for="weight">Weight:</label>
+    <input type="number" id="weight" name="weight" required>
+
+    <label for="unit">Unit:</label>
+    <input type="text" id="unit" name="unit" required>
+
+    <label for="description">Description:</label>
+    <input type="text" id="description" name="description" required>
+
+    <label for="pricePickup">Price Pickup:</label>
+    <input type="number" id="pricePickup" name="pricePickup" required>
+
+    <label for="priceDelivery">Price Delivery:</label>
+    <input type="number" id="priceDelivery" name="priceDelivery" required>
+
+
+
+    <button type="button" onclick="addRow()">Add Product</button>
+</form>
+
+
+<table id="productTable">
+    <tr>
+        <th>ID продукта</th>
+        <th>ID типа</th>
+        <th>Название продукта</th>
+        <th>Вес</th>
+        <th>Единица измерения</th>
+        <th>Описание</th>
+        <th>Цена самовывоза</th>
+        <th>Цена с доставкой</th>
+    </tr>
+    {{range .Products}}
+    <tr id="row_{{.ProductID}}">
+        <td>{{.ProductID}}</td>
+        <td>{{.ProductType.NameType}}</td>
+        <td>{{.ProductName}}</td>
+        <td>{{.Weight}}</td>
+        <td>{{.Unit}}</td>
+        <td>{{.Description}}</td>
+        <td>{{.PricePickup}}</td>
+        <td>{{.PriceDelivery}}</td>
+        <td>
+            <button onclick="deleteRow('{{.ProductID}}')">Удаление</button>
+            <button onclick="editRow('{{.ProductID}}', '{{.ProductType.NameType}}', '{{.ProductName}}', '{{.Weight}}', '{{.Unit}}', '{{.Description}}', '{{.PricePickup}}', '{{.PriceDelivery}}')">Изменение</button>
+        </td>
+    </tr>
+    {{end}}
+</table>
+<button onclick="backup()">Backup</button>
+
+<script>
+    function editRow(id, currentTypeID, currentProductName, currentWeight, currentUnit, currentDescription, currentPricePickup, currentPriceDelivery) {
+        var row = document.getElementById("row_" + id);
+        var cells = row.getElementsByTagName("td");
+
+        for (var i = 1; i < cells.length - 1; i++) {
+            var input = document.createElement("input");
+            input.type = "text";
+            input.value = cells[i].innerText;
+            cells[i].innerText = "";
+            cells[i].appendChild(input);
+        }
+
+        var saveButton = document.createElement("button");
+        saveButton.innerText = "Save";
+        saveButton.onclick = function () {
+            saveRow(id);
+        };
+        cells[cells.length - 1].innerHTML = "";
+        cells[cells.length - 1].appendChild(saveButton);
+    }
+
+    function saveRow(id) {
+        var row = document.getElementById("row_" + id);
+        var cells = row.getElementsByTagName("td");
+        var updatedValues = [];
+
+        for (var i = 1; i < cells.length - 1; i++) {
+            var input = cells[i].getElementsByTagName("input")[0];
+            updatedValues.push(input.value);
+            cells[i].innerText = input.value;
+        }
+
+        var editButton = document.createElement("button");
+        editButton.innerText = "Изменение";
+        editButton.onclick = function () {
+            editRow(id, ...getValuesFromRow(row));
+        };
+
+        var deleteButton = document.createElement("button");
+        deleteButton.innerText = "Удаление";
+        deleteButton.onclick = function () {
+            deleteRow(id);
+        };
+
+        cells[cells.length - 1].innerHTML = "";
+        cells[cells.length - 1].appendChild(editButton);
+        cells[cells.length - 1].appendChild(deleteButton);
+
+        // Используйте функцию fetch для отправки запроса на сервер для обновления данных
+        fetch('/edit_product/' + id, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json;charset=UTF-8',
+            },
+            body: JSON.stringify({
+                ProductID: id,
+                TypeID: updatedValues[0],
+                ProductName: updatedValues[1],
+                Weight: updatedValues[2],
+                Unit: updatedValues[3],
+                Description: updatedValues[4],
+                PricePickup: updatedValues[5],
+                PriceDelivery: updatedValues[6],
+            }),
+        })
+            .then(response => {
+                if (response.ok) {
+                    // Удалите location.reload() и обновите ячейки только после успешного ответа
+                    // Помимо этого, можно рассмотреть использование Promise для синхронизации операций
+                    editButton.innerText = "Изменение";
+                    deleteButton.innerText = "Удаление";
+                } else {
+                    console.error('Ошибка:', response.status);
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+            });
+    }
+
+
+    function getValuesFromRow(row) {
+        var cells = row.getElementsByTagName("td");
+        var values = [];
+        for (var i = 0; i < cells.length - 2; i++) {
+            values.push(cells[i].innerText);
+        }
+        return values;
+    }
+
+
+
+    function addRow() {
+        var table = document.getElementById("productTable");
+        var newRow = table.insertRow(table.rows.length - 1);
+        var newCell1 = newRow.insertCell(0);
+        var newCell2 = newRow.insertCell(1);
+        var newCell3 = newRow.insertCell(2);
+        var newCell4 = newRow.insertCell(3);
+        var newCell5 = newRow.insertCell(4);
+        var newCell6 = newRow.insertCell(5);
+        var newCell7 = newRow.insertCell(6);
+        var newCell8 = newRow.insertCell(7);
+
+        var selectedTypeID = document.getElementById("typeSelect").value;
+        var newProductName = document.getElementById("productName").value;
+        var newWeight = document.getElementById("weight").value;
+        var newUnit = document.getElementById("unit").value;
+        var newDescription = document.getElementById("description").value;
+        var newPricePickup = document.getElementById("pricePickup").value;
+        var newPriceDelivery = document.getElementById("priceDelivery").value;
+
+        // Отправка запроса на сервер для добавления новой строки
+        fetch('/add_product', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                TypeID: selectedTypeID,
+                ProductName: newProductName,
+                Weight: parseFloat(newWeight),
+                Unit: newUnit,
+                Description: newDescription,
+                PricePickup: parseFloat(newPricePickup),
+                PriceDelivery: parseFloat(newPriceDelivery),
+            }),
+        })
+            .then(response => response.json())
+            .then(data => {
+                newCell1.innerHTML = data.ProductID;
+                newCell2.innerHTML = data.ProductType.IDType;
+                newCell3.innerHTML = data.ProductName;
+                newCell4.innerHTML = data.Weight;
+                newCell5.innerHTML = data.Unit;
+                newCell6.innerHTML = data.Description;
+                newCell7.innerHTML = data.PricePickup;
+                newCell8.innerHTML = data.PriceDelivery;
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+            });
+    }
+
+    function deleteRow(id) {
+        var confirmation = confirm("Вы уверены, что хотите удалить данную строку?");
+        if (confirmation) {
+            // Send an AJAX request to the server to delete the row
+            var xhr = new XMLHttpRequest();
+            xhr.open("POST", "/delete_product/" + id, true);
+            xhr.onreadystatechange = function() {
+                if (xhr.readyState == 4 && xhr.status == 200) {
+                    // Reload the page after successful deletion
+                    location.reload();
+                }
+            };
+            xhr.send();
+        }
+    }
+
+    function backup() {
+        var confirmation = confirm("Вы уверены, что хотите создать бэкап?");
+        if (confirmation) {
+            // Send an AJAX request to the server to create a backup
+            fetch('/backup_product', {
+                method: 'POST',
+            })
+                .then(response => {
+                    if (response.ok) {
+                        alert("Бэкап успешно создан!");
+                    } else {
+                        alert("Не удалось создать бэкап!");
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка:', error);
+                });
+        }
+    }
+</script>
+
+</body>
+</html>
